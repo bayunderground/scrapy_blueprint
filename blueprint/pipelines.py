@@ -64,9 +64,11 @@ from itemadapter import ItemAdapter
 
 class PostgresPipeline:
 
-    def __init__(self, dsn):
+    def __init__(self, dsn, crawler):
         self.dsn = dsn
+        self.crawler = crawler
         self.conn = None
+        self.cur = None
 
     @classmethod
     def from_crawler(cls, crawler):
@@ -78,11 +80,9 @@ class PostgresPipeline:
             f"sslmode={crawler.settings.get('PGSSLMODE', 'require')} "
             f"channel_binding={crawler.settings.get('PGCHANNELBINDING', 'require')}"
         )
-        return cls(dsn)
+        return cls(dsn, crawler)
 
     def open_spider(self):
-        spider = self.crawler.spider
-
         self.conn = psycopg.connect(self.dsn)
         self.conn.autocommit = True
         self.cur = self.conn.cursor()
@@ -104,12 +104,10 @@ class PostgresPipeline:
 
 
     def close_spider(self):
-        spider = self.crawler.spider
         self.cur.close()
         self.conn.close()
 
     def process_item(self, item):
-        spider = self.crawler.spider
         data = ItemAdapter(item).asdict()
 
         # ⚠️ adjust to your schema

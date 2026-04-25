@@ -21,14 +21,14 @@ class BlueprintSpiderMiddleware:
         crawler.signals.connect(s.spider_opened, signal=signals.spider_opened)
         return s
 
-    def process_spider_input(self, response, spider):
+    def process_spider_input(self, response):
         # Called for each response that goes through the spider
         # middleware and into the spider.
 
         # Should return None or raise an exception.
         return None
 
-    def process_spider_output(self, response, result, spider):
+    def process_spider_output(self, response, result):
         # Called with the results returned from the Spider, after
         # it has processed the response.
 
@@ -36,7 +36,7 @@ class BlueprintSpiderMiddleware:
         for i in result:
             yield i
 
-    def process_spider_exception(self, response, exception, spider):
+    def process_spider_exception(self, response, exception):
         # Called when a spider or process_spider_input() method
         # (from other spider middleware) raises an exception.
 
@@ -49,7 +49,8 @@ class BlueprintSpiderMiddleware:
         async for item_or_request in start:
             yield item_or_request
 
-    def spider_opened(self, spider):
+    def spider_opened(self):
+        spider = self.crawler.spider
         spider.logger.info("Spider opened: %s" % spider.name)
 
 
@@ -65,7 +66,7 @@ class BlueprintDownloaderMiddleware:
         crawler.signals.connect(s.spider_opened, signal=signals.spider_opened)
         return s
 
-    def process_request(self, request, spider):
+    def process_request(self, request):
         # Called for each request that goes through the downloader
         # middleware.
 
@@ -77,7 +78,7 @@ class BlueprintDownloaderMiddleware:
         #   installed downloader middleware will be called
         return None
 
-    def process_response(self, request, response, spider):
+    def process_response(self, request, response):
         # Called with the response returned from the downloader.
 
         # Must either;
@@ -86,7 +87,7 @@ class BlueprintDownloaderMiddleware:
         # - or raise IgnoreRequest
         return response
 
-    def process_exception(self, request, exception, spider):
+    def process_exception(self, request, exception):
         # Called when a download handler or a process_request()
         # (from other downloader middleware) raises an exception.
 
@@ -96,7 +97,8 @@ class BlueprintDownloaderMiddleware:
         # - return a Request object: stops process_exception() chain
         pass
 
-    def spider_opened(self, spider):
+    def spider_opened(self):
+        spider = self.crawler.spider
         spider.logger.info("Spider opened: %s" % spider.name)
 
 
@@ -111,7 +113,7 @@ class PlaywrightStealthMiddleware:
     def __init__(self):
         self.stealth = Stealth()
 
-    async def process_response(self, request, response, spider):
+    async def process_response(self, request, response):
         page = response.meta.get("playwright_page")
 
         if page:
