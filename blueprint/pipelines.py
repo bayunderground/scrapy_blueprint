@@ -4,6 +4,10 @@ import pprint
 # useful for handling different item types with a single interface
 from itemadapter import ItemAdapter
 
+import os
+from dotenv import load_dotenv
+load_dotenv()
+
 
 class BlueprintPipeline:
     def process_item(self, item, spider):
@@ -12,39 +16,46 @@ class BlueprintPipeline:
 
 class ManualReviewPipeline:
 
-    items: list
-
-    def open_spider(self, spider):
+    def __init__(self, crawler):
+        self.crawler = crawler
         self.items = []
 
-    def close_spider(self, spider):
-        if not env('DEV', 0):
-            return True
+    @classmethod
+    def from_crawler(cls, crawler):
+        return cls(crawler)
 
-        some_not_parsed = any(
-            [i['extra'] for i in self.items if 'extra' in i]
-        )
+    def open_spider(self):
+        self.items = []
 
-        if not some_not_parsed:
-            return True
-
-        not_parsed = [i for i in self.items if 'extra' in i and i['extra']]
-        extras = [i['extra'] for i in not_parsed]
-        pprint.pp(extras)
-
-        logging.getLogger().setLevel(logging.INFO)  #in scrapy shell
-        import ipdb;ipdb.set_trace()
-
-    def process_item(self, item, spider):
-        if env('DEV', 0):
+    def process_item(self, item):
+        if os.getenv('DEV'):
             self.items.append(item)
         else:
-            if 'extra' in item and not item['extra']:
-                del item['extra']
+            # strip empty extra in prod
+            if getattr(item, "extra", None) == {}:
+                del item.extra
         return item
 
+    def close_spider(self):
+        if not os.getenv('DEV'):
+            return
 
+        # collect items WITH errors
+        bad_items = [
+            i for i in self.items
+            if getattr(i, "extra", {}).get("errors")
+        ]
 
+        if not bad_items:
+            return
+
+        errors = [i.extra["errors"] for i in bad_items]
+
+        pprint.pp(errors)
+
+        logging.getLogger().setLevel(logging.INFO)
+
+        import ipdb; ipdb.set_trace()
 
 
 import psycopg
@@ -69,7 +80,9 @@ class PostgresPipeline:
         )
         return cls(dsn)
 
-    def open_spider(self, spider):
+    def open_spider(self):
+        spider = self.crawler.spider
+
         self.conn = psycopg.connect(self.dsn)
         self.conn.autocommit = True
         self.cur = self.conn.cursor()
@@ -90,11 +103,13 @@ class PostgresPipeline:
 
 
 
-    def close_spider(self, spider):
+    def close_spider(self):
+        spider = self.crawler.spider
         self.cur.close()
         self.conn.close()
 
-    def process_item(self, item, spider):
+    def process_item(self, item):
+        spider = self.crawler.spider
         data = ItemAdapter(item).asdict()
 
         # ⚠️ adjust to your schema
@@ -135,23 +150,3 @@ class PostgresPipeline:
         return item
 
 
-
-class NormalizeItemPipeline:
-    """
-    Final cleanup + attach loader errors
-    """
-
-    def process_item(self, item, spider):
-        # attach loader errors if present
-        errors = getattr(item, "_loader_context", {}).get("errors")
-        if errors:
-            item.extra["errors"] = errors
-
-        # normalize empty lists
-        if not item.tags:
-            item.tags = []
-
-        if not item.exhibitor_category:
-            item.exhibitor_category = []
-
-        return item

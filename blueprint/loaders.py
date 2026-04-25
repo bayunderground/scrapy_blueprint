@@ -5,11 +5,6 @@ from .processors import clean_text, clean_list, parse_date_safe
 
 
 class SafeItemLoader(ItemLoader):
-    """
-    Safe loader:
-    - catches processor errors
-    - stores them in context['errors']
-    """
 
     default_output_processor = TakeFirst()
 
@@ -21,12 +16,16 @@ class SafeItemLoader(ItemLoader):
                 "field": field_name,
                 "value": value,
                 "error": str(e),
+                "spider": self.context.get("spider").name if "spider" in self.context else None
             })
 
     def load_item(self):
         item = super().load_item()
 
-        item.extra.update(self.context.get("errors", {}))
+        errors = self.context.get("errors")
+        if errors:
+            # ✅ always store as list under "errors"
+            item.extra.setdefault("errors", []).extend(errors)
 
         return item
 

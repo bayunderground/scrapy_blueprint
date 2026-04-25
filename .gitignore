@@ -1,0 +1,7 @@
+.env
+.idea
+blueprint/.env
+tmp*
+*.csv
+*.jsonl
+__pycache__

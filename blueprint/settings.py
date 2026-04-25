@@ -7,9 +7,9 @@
 #     https://docs.scrapy.org/en/latest/topics/downloader-middleware.html
 #     https://docs.scrapy.org/en/latest/topics/spider-middleware.html
 
-
-from .env import env
-
+import os
+from dotenv import load_dotenv
+load_dotenv()
 
 
 # =============================================================================
@@ -121,12 +121,12 @@ FEEDS = {
     }
 }
 
-PGHOST = env("PGHOST")
-PGDATABASE = env("PGDATABASE")
-PGUSER = env("PGUSER")
-PGPASSWORD = env("PGPASSWORD")
-PGSSLMODE = env("PGSSLMODE", "require")
-PGCHANNELBINDING = env("PGCHANNELBINDING", "require")
+PGHOST = os.getenv("PGHOST")
+PGDATABASE = os.getenv("PGDATABASE")
+PGUSER = os.getenv("PGUSER")
+PGPASSWORD = os.getenv("PGPASSWORD")
+PGSSLMODE = os.getenv("PGSSLMODE", "require")
+PGCHANNELBINDING = os.getenv("PGCHANNELBINDING", "require")
 
 
 # =============================================================================
