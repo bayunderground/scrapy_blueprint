@@ -1,0 +1,6 @@
+Scrapy==2.15.0
+scrapy-playwright
+playwright
+playwright-stealth
+fake-useragent
+coloredlogs
