@@ -1,6 +1,8 @@
 import scrapy
 from scrapy_playwright.page import PageMethod
 from blueprint.base import BaseSpider
+from blueprint.loaders import QuoteLoader, QuoteItem
+
 
 class QuotesSpider(BaseSpider):
     name = "quotes"
@@ -23,15 +25,22 @@ class QuotesSpider(BaseSpider):
             },
         )
 
-    def parse(self, response, **kwargs):
-        quotes = response.css(".quote")
+    async def parse(self, response, **kwargs):
+        loader = QuoteLoader(
+            item=QuoteItem(),
+            response=response,
+        )
 
-        for q in quotes:
-            yield {
-                "text": q.css(".text::text").get(),
-                "author": q.css(".author::text").get(),
-                "tags": q.css(".tags .tag::text").getall(),
-            }
+        loader.add_css("text", ".quote::text")
+        loader.add_css("author_name", ".author::text")
+        loader.add_css("tags", ".tag::text")
+
+        loader.add_value("scraped_from", response.url)
+
+        item = loader.load_item()
+
+        yield item
+
 
         next_page = response.css(".next a::attr(href)").get()
         if next_page:

@@ -133,3 +133,25 @@ class PostgresPipeline:
         )
 
         return item
+
+
+
+class NormalizeItemPipeline:
+    """
+    Final cleanup + attach loader errors
+    """
+
+    def process_item(self, item, spider):
+        # attach loader errors if present
+        errors = getattr(item, "_loader_context", {}).get("errors")
+        if errors:
+            item.extra["errors"] = errors
+
+        # normalize empty lists
+        if not item.tags:
+            item.tags = []
+
+        if not item.exhibitor_category:
+            item.exhibitor_category = []
+
+        return item

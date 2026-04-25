@@ -1,12 +1,19 @@
-# Define here the models for your scraped items
-#
-# See documentation in:
-# https://docs.scrapy.org/en/latest/topics/items.html
-
-import scrapy
+from dataclasses import dataclass, field
+from typing import Optional, List, Dict
 
 
-class BlueprintItem(scrapy.Item):
-    # define the fields for your item here like:
-    # name = scrapy.Field()
-    pass
+@dataclass
+class QuoteItem:
+    text: Optional[str] = None
+    author_name: Optional[str] = None
+    exhibitor_category: List[str] = field(default_factory=list)
+
+    author_born_date: Optional[str] = None
+    author_born_location: Optional[str] = None
+    author_born_description: Optional[str] = None
+
+    tags: List[str] = field(default_factory=list)
+    scraped_from: Optional[str] = None
+
+    # structured error/debug info
+    extra: Dict = field(default_factory=dict)
