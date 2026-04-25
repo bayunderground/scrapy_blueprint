@@ -77,16 +77,26 @@ ROBOTSTXT_OBEY = False
 # =============================================================================
 # Enable or disable spider middlewares
 # See https://docs.scrapy.org/en/latest/topics/spider-middleware.html
-#SPIDER_MIDDLEWARES = {
+SPIDER_MIDDLEWARES = {
 #    "blueprint.middlewares.BlueprintSpiderMiddleware": 543,
-#}
+}
+
+DUPEFILTER_DEBUG = False
+
 
 # Enable or disable downloader middlewares
 # See https://docs.scrapy.org/en/latest/topics/downloader-middleware.html
 DOWNLOADER_MIDDLEWARES = {
+    'scrapy.downloadermiddlewares.redirect.RedirectMiddleware': 543,
 #    "blueprint.middlewares.BlueprintDownloaderMiddleware": 543,
     "blueprint.middlewares.PlaywrightStealthMiddleware": 543,
+    'scrapy.downloadermiddlewares.cookies.CookiesMiddleware': 700,
+    'scrapy.downloadermiddlewares.httpcompression.HttpCompressionMiddleware': 810,
 }
+RETRY_ENABLED = False
+REDIRECT_ENABLED = True
+REDIRECT_MAX_TIMES = 5
+
 
 # =============================================================================
 # PIPELINES
@@ -101,10 +111,13 @@ ITEM_PIPELINES = {
 
 
 FEEDS = {
-    "items.jsonl": {
-        "format": "jsonlines",
-        "encoding": "utf8",
-        "overwrite": True,
+    # "items.jsonl": {
+    #     "format": "jsonlines",
+    #     "encoding": "utf8",
+    #     "overwrite": True,
+    # },
+    'result.csv': {
+        'format': 'csv',
     }
 }
 
