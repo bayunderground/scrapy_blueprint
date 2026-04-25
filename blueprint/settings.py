@@ -8,6 +8,10 @@
 #     https://docs.scrapy.org/en/latest/topics/spider-middleware.html
 
 
+from .env import env
+
+
+
 # =============================================================================
 # CORE PROJECT SETTINGS
 # =============================================================================
@@ -89,9 +93,27 @@ DOWNLOADER_MIDDLEWARES = {
 # =============================================================================
 # Configure item pipelines
 # See https://docs.scrapy.org/en/latest/topics/item-pipeline.html
-#ITEM_PIPELINES = {
+ITEM_PIPELINES = {
 #    "blueprint.pipelines.BlueprintPipeline": 300,
-#}
+    "blueprint.pipelines.ManualReviewPipeline": 100,
+    "blueprint.pipelines.PostgresPipeline": 300,
+}
+
+
+FEEDS = {
+    "items.jsonl": {
+        "format": "jsonlines",
+        "encoding": "utf8",
+        "overwrite": True,
+    }
+}
+
+PGHOST = env("PGHOST")
+PGDATABASE = env("PGDATABASE")
+PGUSER = env("PGUSER")
+PGPASSWORD = env("PGPASSWORD")
+PGSSLMODE = env("PGSSLMODE", "require")
+PGCHANNELBINDING = env("PGCHANNELBINDING", "require")
 
 
 # =============================================================================
