@@ -137,12 +137,15 @@ class PostgresPipeline:
             if col != "scraped_from"
         ])
 
+        unique = getattr(item.__class__, "__unique__", ["scraped_from"])
+        conflict_cols = ", ".join(unique)
+
         sql = f"""
-                INSERT INTO {table} ({col_names})
-                VALUES ({placeholders})
-                ON CONFLICT (scraped_from) DO UPDATE SET
-                {update_clause}
-                """
+        INSERT INTO {table} ({col_names})
+        VALUES ({placeholders})
+        ON CONFLICT ({conflict_cols}) DO UPDATE SET
+        {update_clause}
+        """
 
         self.cur.execute(sql, values)
 

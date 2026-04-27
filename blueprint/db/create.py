@@ -26,6 +26,13 @@ def generate_create_table_sql(item_cls):
 
         columns.append(col)
 
+    # ✅ UNIQUE constraint
+    unique = getattr(item_cls, "__unique__", None)
+    if unique:
+        unique_cols = ", ".join(unique)
+        columns.append(f"UNIQUE ({unique_cols})")
+
+
     columns.append("created_at TIMESTAMP DEFAULT NOW()")
 
     sql = f"""
