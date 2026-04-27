@@ -1,6 +1,7 @@
 import logging
 import pprint
 
+import psycopg
 from psycopg.types.json import Json
 
 # useful for handling different item types with a single interface
@@ -9,6 +10,9 @@ from itemadapter import ItemAdapter
 import os
 from dotenv import load_dotenv
 load_dotenv()
+
+from blueprint.db.create import generate_create_table_sql
+
 
 
 class BlueprintPipeline:
@@ -54,9 +58,6 @@ class ManualReviewPipeline:
         import ipdb; ipdb.set_trace()
 
 
-import psycopg
-from itemadapter import ItemAdapter
-
 
 class PostgresPipeline:
 
@@ -65,6 +66,8 @@ class PostgresPipeline:
         self.crawler = crawler
         self.conn = None
         self.cur = None
+        self.created_tables = set()
+
 
     @classmethod
     def from_crawler(cls, crawler):
@@ -78,41 +81,27 @@ class PostgresPipeline:
         )
         return cls(dsn, crawler)
 
+    def ensure_table(self, item):
+        item_cls = item.__class__
+        table = getattr(item_cls, "__table__", None)
+
+        if not table:
+            raise ValueError(f"{item_cls.__name__} missing __table__")
+
+        if table in self.created_tables:
+            return
+
+        sql = generate_create_table_sql(item_cls)
+        self.cur.execute(sql)
+
+        self.created_tables.add(table)
+
+
     def open_spider(self):
         self.conn = psycopg.connect(self.dsn)
         self.conn.autocommit = True
         self.cur = self.conn.cursor()
 
-        self.cur.execute("""
-        CREATE TABLE IF NOT EXISTS quote_items (
-            id SERIAL PRIMARY KEY,
-
-            scraped_from TEXT UNIQUE NOT NULL,
-
-            text TEXT,
-            author_name TEXT,
-
-            exhibitor_category TEXT[],
-            author_born_date DATE,
-            author_born_location TEXT,
-            author_born_description TEXT,
-
-            tags TEXT[],
-
-            extra JSONB,
-
-            created_at TIMESTAMP DEFAULT NOW()
-        );
-        """)
-
-        return
-        self.cur.execute("""
-        CREATE TABLE IF NOT EXISTS items (
-            id SERIAL PRIMARY KEY,
-            data JSONB,
-            created_at TIMESTAMP DEFAULT NOW()
-        );
-        """)
 
     def close_spider(self):
         self.cur.close()
@@ -120,58 +109,42 @@ class PostgresPipeline:
 
 
     def process_item(self, item):
-        data = ItemAdapter(item).asdict()
+        self.ensure_table(item)
 
-        url = data.get("url")
-        title = data.get("title")
-        price = data.get("price")
-        currency = data.get("currency")
+        adapter = ItemAdapter(item)
+        data = adapter.asdict()
 
-        # everything else → extra
-        extra = {
-            k: v for k, v in data.items()
-            if k not in {"url", "title", "price", "currency"}
-        }
+        table = item.__class__.__table__
 
-        if not item.scraped_from:
-            raise ValueError("scraped_from is required")
+        # --- build query dynamically ---
+        columns = []
+        values = []
 
-        self.cur.execute(
-            """
-            INSERT INTO quote_items (
-                scraped_from,
-                text,
-                author_name,
-                exhibitor_category,
-                author_born_date,
-                author_born_location,
-                author_born_description,
-                tags,
-                extra
-            )
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-            ON CONFLICT (scraped_from) DO UPDATE SET
-                text = EXCLUDED.text,
-                author_name = EXCLUDED.author_name,
-                exhibitor_category = EXCLUDED.exhibitor_category,
-                author_born_date = EXCLUDED.author_born_date,
-                author_born_location = EXCLUDED.author_born_location,
-                author_born_description = EXCLUDED.author_born_description,
-                tags = EXCLUDED.tags,
-                extra = EXCLUDED.extra
-            """,
-            (
-                item.scraped_from,
-                item.text,
-                item.author_name,
-                item.exhibitor_category,
-                item.author_born_date,
-                item.author_born_location,
-                item.author_born_description,
-                item.tags,
-                Json(item.extra) if item.extra else None,
-            )
-        )
+        for key, value in data.items():
+            columns.append(key)
+
+            if isinstance(value, dict):
+                values.append(Json(value))
+            else:
+                values.append(value)
+
+        col_names = ", ".join(columns)
+        placeholders = ", ".join(["%s"] * len(values))
+
+        update_clause = ", ".join([
+            f"{col} = EXCLUDED.{col}"
+            for col in columns
+            if col != "scraped_from"
+        ])
+
+        sql = f"""
+                INSERT INTO {table} ({col_names})
+                VALUES ({placeholders})
+                ON CONFLICT (scraped_from) DO UPDATE SET
+                {update_clause}
+                """
+
+        self.cur.execute(sql, values)
 
         return item
 
