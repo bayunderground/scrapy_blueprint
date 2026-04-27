@@ -22,9 +22,12 @@ class SafeItemLoader(ItemLoader):
     def load_item(self):
         item = super().load_item()
 
+        # ✅ ensure extra always exists
+        if not hasattr(item, "extra") or item.extra is None:
+            item.extra = {}
+
         errors = self.context.get("errors")
         if errors:
-            # ✅ always store as list under "errors"
             item.extra.setdefault("errors", []).extend(errors)
 
         return item

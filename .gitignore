@@ -5,3 +5,4 @@ tmp*
 *.csv
 *.jsonl
 __pycache__
+*.log

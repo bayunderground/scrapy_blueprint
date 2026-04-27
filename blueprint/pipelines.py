@@ -1,6 +1,8 @@
 import logging
 import pprint
 
+from psycopg.types.json import Json
+
 # useful for handling different item types with a single interface
 from itemadapter import ItemAdapter
 
@@ -10,7 +12,7 @@ load_dotenv()
 
 
 class BlueprintPipeline:
-    def process_item(self, item, spider):
+    def process_item(self, item):
         return item
 
 
@@ -28,12 +30,6 @@ class ManualReviewPipeline:
         self.items = []
 
     def process_item(self, item):
-        if os.getenv('DEV'):
-            self.items.append(item)
-        else:
-            # strip empty extra in prod
-            if getattr(item, "extra", None) == {}:
-                del item.extra
         return item
 
     def close_spider(self):
@@ -87,39 +83,44 @@ class PostgresPipeline:
         self.conn.autocommit = True
         self.cur = self.conn.cursor()
 
-        return
-        # ✅ create table if not exists
         self.cur.execute("""
-        CREATE TABLE IF NOT EXISTS items (
+        CREATE TABLE IF NOT EXISTS quote_items (
             id SERIAL PRIMARY KEY,
-            url TEXT UNIQUE,
-            title TEXT,
-            price NUMERIC,
-            currency TEXT,
+
+            scraped_from TEXT UNIQUE NOT NULL,
+
+            text TEXT,
+            author_name TEXT,
+
+            exhibitor_category TEXT[],
+            author_born_date DATE,
+            author_born_location TEXT,
+            author_born_description TEXT,
+
+            tags TEXT[],
+
             extra JSONB,
+
             created_at TIMESTAMP DEFAULT NOW()
         );
         """)
 
-
+        return
+        self.cur.execute("""
+        CREATE TABLE IF NOT EXISTS items (
+            id SERIAL PRIMARY KEY,
+            data JSONB,
+            created_at TIMESTAMP DEFAULT NOW()
+        );
+        """)
 
     def close_spider(self):
         self.cur.close()
         self.conn.close()
 
+
     def process_item(self, item):
         data = ItemAdapter(item).asdict()
-
-        # ⚠️ adjust to your schema
-        self.cur.execute(
-            """
-            INSERT INTO items (data)
-            VALUES (%s)
-            """,
-            (data,)
-        )
-
-        return item
 
         url = data.get("url")
         title = data.get("title")
@@ -132,19 +133,50 @@ class PostgresPipeline:
             if k not in {"url", "title", "price", "currency"}
         }
 
+        if not item.scraped_from:
+            raise ValueError("scraped_from is required")
+
         self.cur.execute(
             """
-            INSERT INTO items (url, title, price, currency, extra)
-            VALUES (%s, %s, %s, %s, %s)
-            ON CONFLICT (url) DO UPDATE SET
-                title = EXCLUDED.title,
-                price = EXCLUDED.price,
-                currency = EXCLUDED.currency,
-                extra = EXCLUDED.extra;
+            INSERT INTO quote_items (
+                scraped_from,
+                text,
+                author_name,
+                exhibitor_category,
+                author_born_date,
+                author_born_location,
+                author_born_description,
+                tags,
+                extra
+            )
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+            ON CONFLICT (scraped_from) DO UPDATE SET
+                text = EXCLUDED.text,
+                author_name = EXCLUDED.author_name,
+                exhibitor_category = EXCLUDED.exhibitor_category,
+                author_born_date = EXCLUDED.author_born_date,
+                author_born_location = EXCLUDED.author_born_location,
+                author_born_description = EXCLUDED.author_born_description,
+                tags = EXCLUDED.tags,
+                extra = EXCLUDED.extra
             """,
-            (url, title, price, currency, extra)
+            (
+                item.scraped_from,
+                item.text,
+                item.author_name,
+                item.exhibitor_category,
+                item.author_born_date,
+                item.author_born_location,
+                item.author_born_description,
+                item.tags,
+                Json(item.extra) if item.extra else None,
+            )
         )
 
         return item
 
+        self.cur.execute(
+            "INSERT INTO items (data) VALUES (%s)",
+            (Json(data),)
+        )
 
