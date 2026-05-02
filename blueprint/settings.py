@@ -105,7 +105,7 @@ REDIRECT_MAX_TIMES = 5
 # See https://docs.scrapy.org/en/latest/topics/item-pipeline.html
 ITEM_PIPELINES = {
 #    "blueprint.pipelines.BlueprintPipeline": 300,
-    "blueprint.pipelines.ManualReviewPipeline": 100,
+    # "blueprint.pipelines.ManualReviewPipeline": 100,  # Temporarily disabled
     "blueprint.pipelines.PostgresPipeline": 300,
 }
 

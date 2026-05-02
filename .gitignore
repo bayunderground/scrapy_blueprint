@@ -6,3 +6,4 @@ tmp*
 *.jsonl
 __pycache__
 *.log
+*.curl

@@ -36,3 +36,26 @@ class QuoteItem(BaseItem):
 
     scraped_from: str = None
     # scraped_from: Optional[str] = None
+
+
+@dataclass
+class RedditCommentItem:
+    author: Optional[str] = None
+    score: Optional[str] = None
+    text: Optional[str] = None
+    replies: List['RedditCommentItem'] = field(default_factory=list)
+
+
+@dataclass
+class RedditPostItem(BaseItem):
+    __table__ = "reddit_posts"
+    __unique__ = ["url"]
+
+    title: Optional[str] = None
+    url: Optional[str] = None
+    post_text: Optional[str] = None
+    author: Optional[str] = None
+    score: Optional[str] = None
+    num_comments: Optional[int] = None
+    subreddit: Optional[str] = None
+    comments: List[RedditCommentItem] = field(default_factory=list)

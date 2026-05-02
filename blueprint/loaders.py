@@ -61,3 +61,15 @@ class QuoteLoader(SafeItemLoader):
 
     # --- META ---
     scraped_from_in = MapCompose(clean_text)
+
+
+class RedditPostLoader(SafeItemLoader):
+
+    # --- POST ---
+    title_in = MapCompose(clean_text)
+    author_in = MapCompose(clean_text)
+    score_in = MapCompose(clean_text)
+    subreddit_in = MapCompose(clean_text)
+
+    post_text_in = MapCompose(clean_text)
+    post_text_out = Join('\n')
