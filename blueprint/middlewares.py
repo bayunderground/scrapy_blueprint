@@ -114,9 +114,13 @@ class PlaywrightStealthMiddleware:
         self.stealth = Stealth()
 
     async def process_response(self, request, response):
-        page = response.meta.get("playwright_page")
-
-        if page:
-            await self.stealth.apply_stealth_async(page)
+        # Only process Playwright responses (check if meta is available)
+        try:
+            page = response.meta.get("playwright_page")
+            if page:
+                await self.stealth.apply_stealth_async(page)
+        except AttributeError:
+            # Response is not tied to a request (non-Playwright response)
+            pass
 
         return response
